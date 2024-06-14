@@ -66,14 +66,62 @@ class updateDatadefect extends CI_Controller
 		$conditionflg = $_GET["conditionflg"];
 		$pwi_id = $_GET["pwi_id"];
 		$BoxNo = $_GET["BoxNo"];
-		  $sql = "update tag_print_detail set flg_control = '{$flgUpdate}' 
-		where flg_control = '{$conditionflg}' and  pwi_id = '{$pwi_id}' and box_no = '{$BoxNo}'";
-		$query = $this->TBK_FA01->query($sql);
-		if ($query){
-			echo "true";
-		}else{
-			echo "false";
+		$goodQty = $_GET["goodQty"];
+		$defect = $_GET["defect"];
+		$cupprint = $_GET["cupprint"];
+		$dinamicgoodQty = $goodQty;
+		  $sqlGetSum = "WITH SumCTE AS (
+				SELECT 
+					SUM(CAST(SUBSTRING(qr_detail, 53, 6) AS INT)) OVER () AS TotalSum,
+					pwi_id,
+					flg_control,
+					qr_detail,
+					id,
+					box_no
+				FROM tag_print_detail
+				WHERE pwi_id = '{$pwi_id}' 
+				AND (flg_control = '1')
+			)
+			SELECT 
+				pwi_id,
+				flg_control,
+				qr_detail,
+				id,
+				box_no ,
+				CAST(SUBSTRING(qr_detail, 53, 6) AS INT) AS QtyTag
+			FROM SumCTE
+			GROUP BY pwi_id, flg_control, qr_detail, id, box_no  
+			ORDER BY id DESC;
+		";
+		$queryGetSum = $this->TBK_FA01->query($sqlGetSum);
+		$getGetSum = $queryGetSum->result_array();
+		// echo "<pre>";
+		// print_r($getGetSum);
+			$count = 1;
+		foreach ($getGetSum as $values) {
+			if($count <= $cupprint){
+				$QtyTag = $values["QtyTag"];
+				$pwi_id_data = $values["pwi_id"];
+				$box_no_data = $values["box_no"];
+				$id = $values["id"];
+				$status = "";
+					// $sql = "update tag_print_detail set flg_control = '{$flgUpdate}' 
+					// where flg_control = '{$conditionflg}' and  pwi_id = '{$pwi_id_data}' and box_no = '{$box_no_data}' ORDER BY id DESC";
+					$sql ="update tag_print_detail set flg_control = '{$flgUpdate}' where id = '{$id}'";
+					$query = $this->TBK_FA01->query($sql);
+					if ($query){
+						$status =  "true";
+					}else{
+						$status =  "false";
+					}
+			}else{
+				goto out;
+			}
+			$count++;	
 		}
+		out:
+		echo $status;
+
 	}
 	public function update_tagprint_sub(){
 		parse_str($_SERVER['QUERY_STRING'], $_GET); 
